@@ -13,12 +13,6 @@ def home():
         return redirect(url_for('login'))
     usuario = session['usuario']
     inventario = usuarios.get(usuario, {})
-    
-    # Calcular días restantes por producto
-    for producto, data in inventario.items():
-        consumo_diario_total = sum(data["consumo"].values())
-        data["dias_restantes"] = (data["cantidad"] // consumo_diario_total) if consumo_diario_total > 0 else "∞"
-
     return render_template('index.html', inventario=inventario, momentos=momentos, usuario=usuario)
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -45,18 +39,16 @@ def agregar_producto():
     data = request.json
     producto = data.get("producto")
     cantidad = int(data.get("cantidad", 0))
+    consumo = data.get("consumo", {})
     
-    if not producto or cantidad <= 0:
-        return jsonify({"error": "Datos inválidos"}), 400
-
-    if usuario not in usuarios:
-        usuarios[usuario] = {}
-
-    if producto not in usuarios[usuario]:
-        usuarios[usuario][producto] = {"cantidad": 0, "consumo": {m: 0 for m in momentos}}
-
-    usuarios[usuario][producto]["cantidad"] += cantidad
-    return jsonify({"message": "Producto agregado", "inventario": usuarios[usuario]})
+    if producto and cantidad > 0:
+        if usuario not in usuarios:
+            usuarios[usuario] = {}
+        usuarios[usuario][producto] = {"cantidad": cantidad, "consumo": {}}
+        for momento in momentos:
+            usuarios[usuario][producto]["consumo"][momento] = int(consumo.get(momento, 0))
+        return jsonify({"message": "Producto agregado", "inventario": usuarios[usuario]})
+    return jsonify({"error": "Datos inválidos"}), 400
 
 @app.route('/registrar_consumo', methods=['POST'])
 def registrar_consumo():
@@ -66,24 +58,35 @@ def registrar_consumo():
     data = request.json
     producto = data.get("producto")
     momento = data.get("momento")
-    cantidad = int(data.get("cantidad", 0))
-
-    if not producto or not momento or cantidad <= 0:
-        return jsonify({"error": "Datos inválidos"}), 400
-
-    if usuario not in usuarios or producto not in usuarios[usuario]:
-        return jsonify({"error": "Producto no registrado"}), 400
-
-    if momento not in usuarios[usuario][producto]["consumo"]:
-        return jsonify({"error": "Momento de consumo no válido"}), 400
-
-    if usuarios[usuario][producto]["cantidad"] < cantidad:
-        return jsonify({"warning": f"No hay suficiente {producto} en inventario."})
-
-    usuarios[usuario][producto]["cantidad"] -= cantidad
-    usuarios[usuario][producto]["consumo"][momento] += cantidad
-
-    return jsonify({"message": "Consumo registrado", "inventario": usuarios[usuario]})
+    cantidad_consumida = int(data.get("cantidad", 0))
+    
+    if usuario in usuarios and producto in usuarios[usuario]:
+        if momento not in momentos:
+            return jsonify({"error": "Momento de consumo inválido"}), 400
+        
+        if cantidad_consumida <= 0:
+            return jsonify({"error": "Cantidad inválida"}), 400
+        
+        if usuarios[usuario][producto]["cantidad"] >= cantidad_consumida:
+            usuarios[usuario][producto]["cantidad"] -= cantidad_consumida
+            usuarios[usuario][producto]["consumo"][momento] += cantidad_consumida
+        else:
+            return jsonify({"warning": f"No hay suficiente {producto} en inventario."})
+        
+        dias_restantes = {}  # Calcular días restantes por momento
+        for momento in momentos:
+            consumo_diario = usuarios[usuario][producto]["consumo"].get(momento, 0)
+            if consumo_diario > 0:
+                dias_restantes[momento] = usuarios[usuario][producto]["cantidad"] // consumo_diario
+            else:
+                dias_restantes[momento] = "N/A"
+        
+        return jsonify({
+            "message": "Consumo registrado",
+            "inventario": usuarios[usuario],
+            "dias_restantes": dias_restantes
+        })
+    return jsonify({"error": "Producto no registrado"}), 400
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
