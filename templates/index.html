@@ -7,32 +7,29 @@
 </head>
 <body>
     <h1>Registro de Mercado</h1>
-    <p>Usuario: {{ usuario }}</p>
-    <a href="{{ url_for('logout') }}">Cerrar Sesión</a>
+    <h3>Usuario: {{ usuario }}</h3>
+    <a href="{{ url_for('logout') }}">Cerrar sesión</a>
 
     <h2>Inventario</h2>
-    <form id="agregar-form">
-        <label for="producto">Producto:</label>
-        <input type="text" id="producto" name="producto" required>
-        
-        <label for="cantidad">Cantidad:</label>
-        <input type="number" id="cantidad" name="cantidad" required>
-        
-        <h3>Consumo por Día</h3>
-        {% for momento in momentos %}
-            <label for="{{ momento }}">{{ momento }}:</label>
-            <input type="number" id="{{ momento }}" name="{{ momento }}" value="0">
+    <table border="1">
+        <tr>
+            <th>Producto</th>
+            <th>Cantidad</th>
+        </tr>
+        {% for producto, data in inventario.items() %}
+        <tr>
+            <td>{{ producto }}</td>
+            <td>{{ data.cantidad }}</td>
+        </tr>
         {% endfor %}
-        
-        <button type="submit">Agregar Producto</button>
-    </form>
+    </table>
 
     <h2>Consumo por Día</h2>
     <table border="1">
         <tr>
             <th>Producto</th>
             {% for momento in momentos %}
-                <th>{{ momento }}</th>
+            <th>{{ momento }}</th>
             {% endfor %}
             <th>Días Restantes</th>
         </tr>
@@ -40,68 +37,41 @@
         <tr>
             <td>{{ producto }}</td>
             {% for momento in momentos %}
-                <td>{{ data.consumo[momento] }}</td>
+            <td>{{ data.consumo[momento] }}</td>
             {% endfor %}
-            <td>
-                {% if data.cantidad > 0 %}
-                    {{ data.cantidad // (sum(data.consumo.values()) if sum(data.consumo.values()) > 0 else 1) }}
-                {% else %}
-                    Agotado
-                {% endif %}
-            </td>
+            <td>{{ data.dias_restantes }}</td>
         </tr>
         {% endfor %}
     </table>
 
     <h2>Registrar Consumo</h2>
-    <form id="consumo-form">
-        <label for="producto-select">Producto:</label>
-        <select id="producto-select" name="producto">
+    <form id="registrarConsumoForm">
+        <label for="producto">Producto:</label>
+        <select id="producto">
             {% for producto in inventario.keys() %}
-                <option value="{{ producto }}">{{ producto }}</option>
+            <option value="{{ producto }}">{{ producto }}</option>
             {% endfor %}
         </select>
         <button type="submit">Registrar Consumo</button>
     </form>
 
     <script>
-        document.getElementById("agregar-form").addEventListener("submit", function(event) {
+        document.getElementById("registrarConsumoForm").addEventListener("submit", function(event) {
             event.preventDefault();
-            let producto = document.getElementById("producto").value;
-            let cantidad = document.getElementById("cantidad").value;
-            let consumo = {};
-            {% for momento in momentos %}
-                consumo["{{ momento }}"] = document.getElementById("{{ momento }}").value;
-            {% endfor %}
-
-            fetch("/agregar", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({producto, cantidad, consumo})
-            }).then(response => response.json())
-              .then(data => {
-                alert(data.message || data.error);
-                location.reload();
-            });
-        });
-
-        document.getElementById("consumo-form").addEventListener("submit", function(event) {
-            event.preventDefault();
-            let producto = document.getElementById("producto-select").value;
+            const producto = document.getElementById("producto").value;
 
             fetch("/registrar_consumo", {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({producto})
-            }).then(response => response.json())
-              .then(data => {
-                alert(data.message || data.warning || data.error);
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ producto: producto })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.message) alert(data.message);
+                if (data.warning) alert(data.warning);
                 location.reload();
-            });
+            })
+            .catch(error => console.error("Error:", error));
         });
     </script>
 </body>
