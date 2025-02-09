@@ -4,75 +4,111 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Registro de Mercado</title>
+    <script>
+        function agregarProducto() {
+            const producto = document.getElementById("producto").value;
+            const cantidad = document.getElementById("cantidad").value;
+            
+            if (!producto || !cantidad || cantidad <= 0) {
+                alert("Ingrese un producto válido y una cantidad mayor a 0");
+                return;
+            }
+
+            const consumos = {};
+            document.querySelectorAll(".consumo").forEach(input => {
+                consumos[input.name] = input.value || 0;
+            });
+
+            fetch("/agregar", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ producto, cantidad, consumo: consumos })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.message) {
+                    actualizarTabla(data.inventario);
+                } else {
+                    alert(data.error);
+                }
+            })
+            .catch(error => console.error("Error:", error));
+        }
+
+        function actualizarTabla(inventario) {
+            const tablaInventario = document.getElementById("tablaInventario");
+            tablaInventario.innerHTML = ""; 
+
+            Object.keys(inventario).forEach(producto => {
+                const tr = document.createElement("tr");
+                tr.innerHTML = `<td>${producto}</td><td>${inventario[producto].cantidad}</td>`;
+                tablaInventario.appendChild(tr);
+            });
+        }
+    </script>
 </head>
 <body>
     <h1>Registro de Mercado</h1>
-    <h3>Usuario: {{ usuario }}</h3>
-    <a href="{{ url_for('logout') }}">Cerrar sesión</a>
+    
+    <p><strong>Usuario:</strong> {{ usuario }}</p>
+    <p><a href="{{ url_for('logout') }}">Cerrar sesión</a></p>
 
     <h2>Inventario</h2>
     <table border="1">
-        <tr>
-            <th>Producto</th>
-            <th>Cantidad</th>
-        </tr>
-        {% for producto, data in inventario.items() %}
-        <tr>
-            <td>{{ producto }}</td>
-            <td>{{ data.cantidad }}</td>
-        </tr>
-        {% endfor %}
+        <thead>
+            <tr>
+                <th>Producto</th>
+                <th>Cantidad</th>
+            </tr>
+        </thead>
+        <tbody id="tablaInventario">
+            {% for producto, data in inventario.items() %}
+            <tr>
+                <td>{{ producto }}</td>
+                <td>{{ data.cantidad }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
     </table>
 
     <h2>Consumo por Día</h2>
     <table border="1">
-        <tr>
-            <th>Producto</th>
-            {% for momento in momentos %}
-            <th>{{ momento }}</th>
+        <thead>
+            <tr>
+                <th>Producto</th>
+                {% for momento in momentos %}
+                <th>{{ momento }}</th>
+                {% endfor %}
+                <th>Días Restantes</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for producto, data in inventario.items() %}
+            <tr>
+                <td>{{ producto }}</td>
+                {% for momento in momentos %}
+                <td>{{ data.consumo[momento] }}</td>
+                {% endfor %}
+                <td>{{ (data.cantidad // sum(data.consumo.values())) if sum(data.consumo.values()) > 0 else 1 }}</td>
+            </tr>
             {% endfor %}
-            <th>Días Restantes</th>
-        </tr>
-        {% for producto, data in inventario.items() %}
-        <tr>
-            <td>{{ producto }}</td>
-            {% for momento in momentos %}
-            <td>{{ data.consumo[momento] }}</td>
-            {% endfor %}
-            <td>{{ data.dias_restantes }}</td>
-        </tr>
-        {% endfor %}
+        </tbody>
     </table>
 
     <h2>Registrar Consumo</h2>
-    <form id="registrarConsumoForm">
+    <form onsubmit="event.preventDefault(); agregarProducto();">
         <label for="producto">Producto:</label>
-        <select id="producto">
-            {% for producto in inventario.keys() %}
-            <option value="{{ producto }}">{{ producto }}</option>
-            {% endfor %}
-        </select>
-        <button type="submit">Registrar Consumo</button>
+        <input type="text" id="producto" required>
+        <label for="cantidad">Cantidad:</label>
+        <input type="number" id="cantidad" required>
+        
+        <h3>Consumo por momento del día</h3>
+        {% for momento in momentos %}
+            <label>{{ momento }}:</label>
+            <input type="number" name="{{ momento }}" class="consumo" value="0">
+        {% endfor %}
+        
+        <button type="submit">Agregar Producto</button>
     </form>
-
-    <script>
-        document.getElementById("registrarConsumoForm").addEventListener("submit", function(event) {
-            event.preventDefault();
-            const producto = document.getElementById("producto").value;
-
-            fetch("/registrar_consumo", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ producto: producto })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.message) alert(data.message);
-                if (data.warning) alert(data.warning);
-                location.reload();
-            })
-            .catch(error => console.error("Error:", error));
-        });
-    </script>
 </body>
 </html>
