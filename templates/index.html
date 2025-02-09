@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registro de Mercado</title>
+</head>
+<body>
+    <h1>Registro de Mercado</h1>
+
+    <h2>Inventario</h2>
+    <ul>
+        {% for producto, datos in inventario.items() %}
+            <li>
+                <strong>{{ producto }}</strong>: {{ datos["cantidad"] }} unidades
+                <ul>
+                    {% for momento, consumo in datos["consumo"].items() %}
+                        <li>{{ momento }}: {{ consumo }} unidades/día</li>
+                    {% endfor %}
+                </ul>
+            </li>
+        {% endfor %}
+    </ul>
+</body>
+</html>
