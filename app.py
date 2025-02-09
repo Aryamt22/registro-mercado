@@ -7,12 +7,21 @@ app.secret_key = "supersecretkey"
 usuarios = {}
 momentos = ["Desayuno", "Merienda 1", "Almuerzo", "Merienda 2", "Cena"]
 
+# Habilitar sum() en Jinja
+app.jinja_env.globals.update(sum=sum)
+
 @app.route('/')
 def home():
     if 'usuario' not in session:
         return redirect(url_for('login'))
     usuario = session['usuario']
     inventario = usuarios.get(usuario, {})
+
+    # Calcular días restantes en el servidor
+    for producto, data in inventario.items():
+        total_consumo = sum(data["consumo"].values()) if data["consumo"] else 0
+        data["dias_restantes"] = (data["cantidad"] // total_consumo) if total_consumo > 0 else 1
+
     return render_template('index.html', inventario=inventario, momentos=momentos, usuario=usuario)
 
 @app.route('/login', methods=['GET', 'POST'])
