@@ -7,19 +7,18 @@
 </head>
 <body>
     <h1>Registro de Mercado</h1>
-
     <h2>Inventario</h2>
-    <ul>
+    <table border="1">
+        <tr>
+            <th>Producto</th>
+            <th>Cantidad</th>
+        </tr>
         {% for producto, datos in inventario.items() %}
-            <li>
-                <strong>{{ producto }}</strong>: {{ datos["cantidad"] }} unidades
-                <ul>
-                    {% for momento, consumo in datos["consumo"].items() %}
-                        <li>{{ momento }}: {{ consumo }} unidades/día</li>
-                    {% endfor %}
-                </ul>
-            </li>
+        <tr>
+            <td>{{ producto }}</td>
+            <td>{{ datos["cantidad"] }}</td>
+        </tr>
         {% endfor %}
-    </ul>
+    </table>
 </body>
 </html>
