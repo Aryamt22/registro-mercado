@@ -7,20 +7,17 @@ app.secret_key = "supersecretkey"
 usuarios = {}
 momentos = ["Desayuno", "Merienda 1", "Almuerzo", "Merienda 2", "Cena"]
 
-# Habilitar sum() en Jinja
-app.jinja_env.globals.update(sum=sum)
-
 @app.route('/')
 def home():
     if 'usuario' not in session:
         return redirect(url_for('login'))
     usuario = session['usuario']
     inventario = usuarios.get(usuario, {})
-
-    # Calcular días restantes en el servidor
+    
+    # Calcular días restantes por producto
     for producto, data in inventario.items():
-        total_consumo = sum(data["consumo"].values()) if data["consumo"] else 0
-        data["dias_restantes"] = (data["cantidad"] // total_consumo) if total_consumo > 0 else 1
+        consumo_diario_total = sum(data["consumo"].values())
+        data["dias_restantes"] = (data["cantidad"] // consumo_diario_total) if consumo_diario_total > 0 else "∞"
 
     return render_template('index.html', inventario=inventario, momentos=momentos, usuario=usuario)
 
@@ -48,16 +45,18 @@ def agregar_producto():
     data = request.json
     producto = data.get("producto")
     cantidad = int(data.get("cantidad", 0))
-    consumo = data.get("consumo", {})
     
-    if producto and cantidad > 0:
-        if usuario not in usuarios:
-            usuarios[usuario] = {}
-        usuarios[usuario][producto] = {"cantidad": cantidad, "consumo": {}}
-        for momento in momentos:
-            usuarios[usuario][producto]["consumo"][momento] = int(consumo.get(momento, 0))
-        return jsonify({"message": "Producto agregado", "inventario": usuarios[usuario]})
-    return jsonify({"error": "Datos inválidos"}), 400
+    if not producto or cantidad <= 0:
+        return jsonify({"error": "Datos inválidos"}), 400
+
+    if usuario not in usuarios:
+        usuarios[usuario] = {}
+
+    if producto not in usuarios[usuario]:
+        usuarios[usuario][producto] = {"cantidad": 0, "consumo": {m: 0 for m in momentos}}
+
+    usuarios[usuario][producto]["cantidad"] += cantidad
+    return jsonify({"message": "Producto agregado", "inventario": usuarios[usuario]})
 
 @app.route('/registrar_consumo', methods=['POST'])
 def registrar_consumo():
@@ -66,13 +65,25 @@ def registrar_consumo():
     usuario = session['usuario']
     data = request.json
     producto = data.get("producto")
-    if usuario in usuarios and producto in usuarios[usuario]:
-        total_consumo = sum(usuarios[usuario][producto]["consumo"].values())
-        usuarios[usuario][producto]["cantidad"] -= total_consumo
-        if usuarios[usuario][producto]["cantidad"] <= 0:
-            return jsonify({"warning": f"{producto} se ha agotado. Debes comprar más."})
-        return jsonify({"message": "Consumo registrado", "inventario": usuarios[usuario]})
-    return jsonify({"error": "Producto no registrado"}), 400
+    momento = data.get("momento")
+    cantidad = int(data.get("cantidad", 0))
+
+    if not producto or not momento or cantidad <= 0:
+        return jsonify({"error": "Datos inválidos"}), 400
+
+    if usuario not in usuarios or producto not in usuarios[usuario]:
+        return jsonify({"error": "Producto no registrado"}), 400
+
+    if momento not in usuarios[usuario][producto]["consumo"]:
+        return jsonify({"error": "Momento de consumo no válido"}), 400
+
+    if usuarios[usuario][producto]["cantidad"] < cantidad:
+        return jsonify({"warning": f"No hay suficiente {producto} en inventario."})
+
+    usuarios[usuario][producto]["cantidad"] -= cantidad
+    usuarios[usuario][producto]["consumo"][momento] += cantidad
+
+    return jsonify({"message": "Consumo registrado", "inventario": usuarios[usuario]})
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
