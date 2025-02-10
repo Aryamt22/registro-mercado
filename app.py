@@ -1,10 +1,11 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify
-import os
 
 app = Flask(__name__)
 
-# Simulación de base de datos en memoria
+# Simulación de inventario en memoria
 inventario = {}
+
+# Momentos del día para registrar consumo
 momentos = ["Desayuno", "Merienda 1", "Almuerzo", "Merienda 2", "Cena"]
 
 
@@ -21,16 +22,20 @@ def agregar_producto():
     consumo = data.get("consumo", {})
 
     if not producto or cantidad <= 0:
-        return jsonify({"error": "Producto inválido o cantidad incorrecta"}), 400
+        return jsonify({"error": "Datos inválidos"}), 400
 
     if producto in inventario:
         inventario[producto]["cantidad"] += cantidad
     else:
-        inventario[producto] = {"cantidad": cantidad, "consumo": consumo}
+        inventario[producto] = {"cantidad": cantidad, "consumo": {momento: int(consumo.get(momento, 0)) for momento in momentos}}
 
     return jsonify({"message": "Producto agregado", "inventario": inventario})
 
 
+@app.route("/logout")
+def logout():
+    return redirect(url_for("index"))  # Simulación de logout
+
+
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))  # Obtiene el puerto asignado por Render
-    app.run(host="0.0.0.0", port=port, debug=True)
+    app.run(debug=True, host="0.0.0.0")
