@@ -28,6 +28,7 @@
             .then(data => {
                 if (data.message) {
                     actualizarTabla(data.inventario);
+                    actualizarConsumo(data.inventario); // Nuevo
                 } else {
                     alert(data.error);
                 }
@@ -43,6 +44,25 @@
                 const tr = document.createElement("tr");
                 tr.innerHTML = `<td>${producto}</td><td>${inventario[producto].cantidad}</td>`;
                 tablaInventario.appendChild(tr);
+            });
+        }
+
+        function actualizarConsumo(inventario) {
+            const tablaConsumo = document.getElementById("tablaConsumo");
+            tablaConsumo.innerHTML = "";
+
+            Object.keys(inventario).forEach(producto => {
+                const tr = document.createElement("tr");
+                let fila = `<td>${producto}</td>`;
+
+                ["Desayuno", "Merienda 1", "Almuerzo", "Merienda 2", "Cena"].forEach(momento => {
+                    let consumo = inventario[producto].consumo[momento] || 0;
+                    let dias = consumo > 0 ? Math.floor(inventario[producto].cantidad / consumo) : "N/A";
+                    fila += `<td>${consumo}</td><td>${dias}</td>`;
+                });
+
+                tr.innerHTML = fila;
+                tablaConsumo.appendChild(tr);
             });
         }
     </script>
@@ -78,24 +98,24 @@
                 <th>Producto</th>
                 {% for momento in momentos %}
                 <th>{{ momento }}</th>
-                {% endfor %}
                 <th>Días Restantes</th>
+                {% endfor %}
             </tr>
         </thead>
-        <tbody>
+        <tbody id="tablaConsumo">
             {% for producto, data in inventario.items() %}
             <tr>
                 <td>{{ producto }}</td>
                 {% for momento in momentos %}
                 <td>{{ data.consumo.get(momento, 0) }}</td>
-                {% endfor %}
                 <td>
-                    {% if data.consumo and data.consumo.values()|sum > 0 %}
-                        {{ data.cantidad // data.consumo.values()|sum }}
+                    {% if data.consumo.get(momento, 0) > 0 %}
+                        {{ data.cantidad // data.consumo.get(momento, 1) }}
                     {% else %}
-                        1
+                        "N/A"
                     {% endif %}
                 </td>
+                {% endfor %}
             </tr>
             {% endfor %}
         </tbody>
