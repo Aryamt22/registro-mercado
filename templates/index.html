@@ -50,9 +50,6 @@
 <body>
     <h1>Registro de Mercado</h1>
     
-    <p><strong>Usuario:</strong> {{ usuario }}</p>
-    <p><a href="{{ url_for('logout') }}">Cerrar sesión</a></p>
-
     <h2>Inventario</h2>
     <table border="1">
         <thead>
@@ -71,37 +68,7 @@
         </tbody>
     </table>
 
-    <h2>Consumo por Día</h2>
-    <table border="1">
-        <thead>
-            <tr>
-                <th>Producto</th>
-                {% for momento in momentos %}
-                <th>{{ momento }}</th>
-                {% endfor %}
-                <th>Días Restantes</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for producto, data in inventario.items() %}
-            <tr>
-                <td>{{ producto }}</td>
-                {% for momento in momentos %}
-                <td>{{ data.consumo.get(momento, 0) }}</td>
-                {% endfor %}
-                <td>
-                    {% if data.consumo and data.consumo.values()|sum > 0 %}
-                        {{ data.cantidad // data.consumo.values()|sum }}
-                    {% else %}
-                        1
-                    {% endif %}
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-
-    <h2>Registrar Consumo</h2>
+    <h2>Registrar Producto</h2>
     <form onsubmit="event.preventDefault(); agregarProducto();">
         <label for="producto">Producto:</label>
         <input type="text" id="producto" required>
