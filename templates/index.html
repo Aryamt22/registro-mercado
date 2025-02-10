@@ -4,6 +4,48 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Registro de Mercado</title>
+    <script>
+        function agregarProducto() {
+            const producto = document.getElementById("producto").value;
+            const cantidad = document.getElementById("cantidad").value;
+            
+            if (!producto || !cantidad || cantidad <= 0) {
+                alert("Ingrese un producto válido y una cantidad mayor a 0");
+                return;
+            }
+
+            const consumos = {};
+            document.querySelectorAll(".consumo").forEach(input => {
+                consumos[input.name] = input.value || 0;
+            });
+
+            fetch("/agregar", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ producto, cantidad, consumo: consumos })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.message) {
+                    actualizarTabla(data.inventario);
+                } else {
+                    alert(data.error);
+                }
+            })
+            .catch(error => console.error("Error:", error));
+        }
+
+        function actualizarTabla(inventario) {
+            const tablaInventario = document.getElementById("tablaInventario");
+            tablaInventario.innerHTML = ""; 
+
+            Object.keys(inventario).forEach(producto => {
+                const tr = document.createElement("tr");
+                tr.innerHTML = `<td>${producto}</td><td>${inventario[producto].cantidad}</td>`;
+                tablaInventario.appendChild(tr);
+            });
+        }
+    </script>
 </head>
 <body>
     <h1>Registro de Mercado</h1>
@@ -19,7 +61,7 @@
                 <th>Cantidad</th>
             </tr>
         </thead>
-        <tbody>
+        <tbody id="tablaInventario">
             {% for producto, data in inventario.items() %}
             <tr>
                 <td>{{ producto }}</td>
@@ -45,16 +87,34 @@
             <tr>
                 <td>{{ producto }}</td>
                 {% for momento in momentos %}
-                <td>{{ data.consumo[momento] }}</td>
+                <td>{{ data.consumo.get(momento, 0) }}</td>
                 {% endfor %}
                 <td>
-                    {% for momento in momentos %}
-                        {{ data.dias_restantes[momento] }} 
-                    {% endfor %}
+                    {% if data.consumo and data.consumo.values()|sum > 0 %}
+                        {{ data.cantidad // data.consumo.values()|sum }}
+                    {% else %}
+                        1
+                    {% endif %}
                 </td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
+
+    <h2>Registrar Consumo</h2>
+    <form onsubmit="event.preventDefault(); agregarProducto();">
+        <label for="producto">Producto:</label>
+        <input type="text" id="producto" required>
+        <label for="cantidad">Cantidad:</label>
+        <input type="number" id="cantidad" required>
+        
+        <h3>Consumo por momento del día</h3>
+        {% for momento in momentos %}
+            <label>{{ momento }}:</label>
+            <input type="number" name="{{ momento }}" class="consumo" value="0">
+        {% endfor %}
+        
+        <button type="submit">Agregar Producto</button>
+    </form>
 </body>
 </html>
